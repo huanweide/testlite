@@ -1,0 +1,26 @@
+{
+  "name": "testlite",
+  "version": "1.0.0",
+  "description": "零依赖单文件 Node CLI · 测试卫生体检中心（框架识别/测试发现/密度估算/零测试警告/健康分/CI 门禁）",
+  "bin": {
+    "testlite": "index.js"
+  },
+  "main": "index.js",
+  "scripts": {
+    "test": "node test.js"
+  },
+  "keywords": [
+    "cli",
+    "test",
+    "testing",
+    "health",
+    "coverage",
+    "zero-dependency",
+    "ci",
+    "lint"
+  ],
+  "license": "MIT",
+  "engines": {
+    "node": ">=14"
+  }
+}
