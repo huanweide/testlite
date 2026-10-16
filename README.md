@@ -4,19 +4,33 @@
 
 devdoctor 看「依赖干不干净」，testlite 看「测试健不健康」——两者拼成代码健康 family 的完整组合叙事。
 
+## ⚠️ 安装前必读：本项目尚未发布到 npm，npm 上的 `testlite` 是别人的包
+
+`npm view testlite` 的真实输出（2026-10 实测）：
+
+```
+testlite@2.0.2 | MIT | deps: none | versions: 7
+Easy, lightweight testing
+https://github.com/bdsomer/testlite#readme
+maintainers: bdsomer <bdsomer@gmail.com>
+```
+
+**那是另一个作者的无关包**（bdsomer 的测试辅助库）。执行 `npm i -g testlite` 或 `npx testlite` 会装错东西并抢占同名命令。所以：
+
+```bash
+# 推荐：直接克隆使用（零依赖，无需 npm install）
+git clone https://github.com/huanweide/testlite.git
+node testlite/index.js doctor --root <你的项目>
+
+# 或用 npx 直接跑 GitHub 源（不经过 npm 注册表，不会撞名）
+npx github:huanweide/testlite doctor --root <你的项目>
+```
+
 ## 为什么需要它
 
 - 现有测试统计（jest --coverage / istanbul / c8）要么要装依赖、要么配置重。
 - 裸 `npm test` 只跑不体检，CI 里想加一条「测试卫生门禁」得写一堆脚本。
 - testlite 零依赖、单文件、开箱即跑，一键看测试卫生 + 可进 CI 的门禁。
-
-## 安装
-
-```bash
-npm i -g testlite
-# 或直接走 npx（无需安装）
-npx testlite doctor
-```
 
 ## 用法
 
@@ -25,8 +39,10 @@ npx testlite doctor
 testlite doctor [--root <dir>] [--json] [--min-tests <n>] [--min-density <n>] [--fail-on-issues]
 
 # 可选增强：用 Node 内置 test runner 真跑并解析
-testlite run [--root <dir>] [--json]
+testlite run    [--root <dir>] [--json] [--min-tests <n>] [--min-density <n>] [--fail-on-issues]
 ```
+
+也支持 `--root=<dir>` 内联写法。
 
 doctor 静态体检覆盖：
 
@@ -40,6 +56,22 @@ doctor 静态体检覆盖：
 
 run 可选增强：spawn `node --test` 真跑并解析 tests/pass/fail/skipped/todo + 总耗时；若项目用 jest/vitest 等导致解析不到，自动降级为静态体检，不崩。
 
+## 退出码
+
+| 码 | 含义 |
+|----|------|
+| 0 | 体检通过 |
+| 1 | 内部异常 |
+| 2 | 参数错误 / root 无效 / 门禁不达标 |
+
+**未知选项、缺值、非数字阈值一律退 2。** 门禁参数写错 = 门禁不存在，绝不静默当没传：
+
+```bash
+$ testlite doctor --bogus           # rc=2，指名报「未知选项: --bogus」
+$ testlite doctor --min-tests 12abc # rc=2（不是被截成 12）
+$ testlite doctor --root            # rc=2（缺值，不崩溃）
+```
+
 ## CI 门禁
 
 ```bash
@@ -47,7 +79,19 @@ run 可选增强：spawn `node --test` 真跑并解析 tests/pass/fail/skipped/t
 testlite doctor --min-tests 10 --fail-on-issues
 ```
 
-阈值参数一律做 `Number.isFinite` 校验，非整数直接 exit 2，绝不静默放行。
+`run` 与 `doctor` **同样吃全部门禁参数**（早期版本 `run` 会静默忽略它们，等于门禁不存在）。
+
+## 扫描基线可信度（`basisComplete`）
+
+体检工具最恶劣的失败模式是「扫了 0 个对象却报通过」。testlite 只体检 JS/TS 项目；若传入的 root 下**一个 JS/TS 文件都没有**（例如误传了 Python 项目目录、空目录），旧版本会拿 0/0 算出「健康分 10/100 · 警告 无 · 门禁 通过」并退 0。
+
+现在这种情况下：
+
+- 健康分显示 `n/a（扫描基线为空，不发分）`，JSON 里 `healthScore: 0`
+- 报告与 JSON 都带 `basisComplete: false` 与 `basisReason`
+- **门禁无条件失败**（rc=2），无论是否显式传了阈值
+
+下游若要串多个门禁工具，用 `basisComplete` 判断这份结论能不能信。
 
 ## 差异化
 
@@ -61,9 +105,30 @@ testlite doctor --min-tests 10 --fail-on-issues
 ## 设计铁律（family 方法沉淀）
 
 - 纯本地、零依赖、离线、单文件，跨平台（Windows posix 路径）。
-- 门禁阈值 `Number.isFinite` 校验，非整数 exit 2，绝不静默放行。
+- 未知选项 / 缺值 / 非数字阈值一律 exit 2，绝不静默放行。
+- 阈值只接受完整数字：`12abc`、`1e3`、`0x10`、`Infinity` 全部拒绝（`parseInt` 会把它们悄悄截断或转成怪值）。
+- **扫描基线为空必须报错**，绝不「零对象即通过」；结论带 `basisComplete` 供下游判断可信度。
+- 测试目录判定只看 root 之下的**相对**路径段——root 自身路径里含 `test/` 不应把整棵源码树误判成测试。
 - root 必须 `statSync` 先验存在且为目录，错误路径不谎报「通过」。
+- 主入口用 `process.exitCode` 而非 `process.exit()`：后者会截断尚未 flush 的 stdout，`--json` 在管道里会残缺到 `JSON.parse` 直接炸。
 - 大文件（>5MB）跳过防 OOM；坏 JSON 静默跳过不崩。
+
+## 环境要求
+
+Node.js >= 18。`run` 子命令依赖 Node 内置 test runner（`node --test`），更早的版本无法真实执行。
+
+## 测试与门禁
+
+```bash
+npm test              # 单元测试 + 入口冒烟，两道都必须绿
+node test.js          # 单元测试（10 组）
+node test/smoke-cli.js  # 入口冒烟（spawn 级，9 组，校验真实退出码）
+```
+
+CI 在 Node 18/20/22 × ubuntu/windows 上跑全矩阵，另加零依赖自证、README 一致性与 dogfood 自检。
+
+> 为什么单测之外还要 spawn 级冒烟：`node test.js` 只测导出的函数，**根本不碰 `process.exit`**。门禁的价值 100% 在退出码上，退出码错了单测全绿也没用。
+> 这套门禁经过 10 例变异测试验证（逐个注入缺陷确认能被拦住），没有变异验证的门禁等于没有门禁。
 
 ## License
 
@@ -74,10 +139,6 @@ MIT
 ## 作者
 
 由 **ReTr · 樊斯瑞** 维护 · [GitHub 主页](https://github.com/huanweide)
-
-## CI 门禁用法
-
-开箱即可接入 CI：在流水线中运行本工具，它会输出健康分与严重度；若存在不达标项会以非 0 退出码结束，从而拦下问题提交（具体参数见上方「快速开始」）。
 
 ## 赞助支持
 

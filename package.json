@@ -1,26 +1,36 @@
 {
   "name": "testlite",
-  "version": "1.0.0",
-  "description": "零依赖单文件 Node CLI · 测试卫生体检中心（框架识别/测试发现/密度估算/零测试警告/健康分/CI 门禁）",
+  "version": "1.1.0",
+  "description": "零依赖单文件 Node CLI · 测试卫生体检中心（框架识别/测试发现/密度估算/零测试警告/健康分/扫描基线可信度/CI 门禁）",
   "bin": {
     "testlite": "index.js"
   },
   "main": "index.js",
   "scripts": {
-    "test": "node test.js"
+    "test": "node test.js && node test/smoke-cli.js",
+    "test:unit": "node test.js",
+    "test:smoke": "node test/smoke-cli.js",
+    "selfcheck": "node index.js doctor --root . --min-tests 1"
   },
   "keywords": [
     "cli",
     "test",
     "testing",
+    "test-hygiene",
     "health",
     "coverage",
     "zero-dependency",
     "ci",
-    "lint"
+    "lint",
+    "static-analysis"
   ],
   "license": "MIT",
+  "files": [
+    "index.js",
+    "README.md",
+    "LICENSE"
+  ],
   "engines": {
-    "node": ">=14"
+    "node": ">=18"
   }
 }
