@@ -1,7 +1,7 @@
 {
   "repo": "testlite",
   "lastOptimized": "2026-10-16",
-  "round": 1,
+  "round": 2,
   "status": "optimized",
   "direction": "单点深度特化：门禁真实性（把「体检工具本身可能是假门禁」这一点做到极致）",
   "survival": {
@@ -23,13 +23,15 @@
     "P1 README 顶部补 npm 包名撞车警告：npm 上 testlite 属 bdsomer（实测 npm view 输出贴进 README），删掉会装错包的 npx/npm i -g 命令，改给 github: 路径",
     "P1 README 删模板残留的「CI 门禁用法」段（原写「输出健康分与严重度」，本工具无严重度概念，且引用不存在的「快速开始」章节）",
     "P1 测试资产补齐：单测 6 组 → 10 组；新增 test/smoke-cli.js 入口冒烟 9 组（spawn 级，真跑进程校验退出码）；冒烟脚本放 test/ 而非 scripts/ 以便被本工具自身识别为测试资产",
-    "P1 支持 --opt=value 内联写法"
+    "P1 支持 --opt=value 内联写法",
+    "P0「门禁未启用」谎报「门禁通过」（Round 2 实测发现）：用本工具体检 family-showcase 时健康分 10/100、零测试，不传阈值却打印「门禁: 通过」—— 实际上一条门禁都没生效。现区分 gate.active / gate.configured，未配阈值时显示「门禁: 未启用（退出码恒为 0）」",
+    "P1 run 模式同步区分门禁状态（Round 2）"
   ],
   "verification": {
     "unit": "node test.js → 10 组全绿",
-    "smoke": "node test/smoke-cli.js → 9 组全绿（spawn 级退出码契约）",
-    "mutation": "10/10 变异全部被拦截，连续两轮稳定",
-    "mutationNote": "M1/M10 首版逃逸，均查明根因后修正门禁本身而非改变异：M1 是等价变异（未知选项与未知命令两条分支 rc 均为 2），改为断言错误消息类型以区分；M10 在 Windows 上即使 978KB 输出也不截断（平台特性），改为源码级断言禁止 process.exit(main(...))",
+    "smoke": "node test/smoke-cli.js → 10 组全绿",
+    "mutation": "13/13 变异全部被拦截，连续两轮稳定",
+    "mutationNote": "M1/M10 首版逃逸，均查明根因后修正门禁本身而非改变异：M1 是等价变异（未知选项与未知命令两条分支 rc 均为 2），改为断言错误消息类型以区分；M10 在 Windows 上即使 978KB 输出也不截断（平台特性），改为源码级断言禁止 process.exit(main(...))；Round 2 新增 M11-M13 三例门禁措辞变异，暴露 replace() 只替换首个匹配导致「变异未真正发生」，改为 split/join 全量替换后拦下",
     "selfdogfood": "node index.js doctor --root . --min-tests 1 → rc=0，健康分 80，零依赖自证通过"
   },
   "selfMistakes": [
@@ -38,9 +40,10 @@
     "重建 base commit 时误把探针残留 j1.txt 纳入版本历史，导致整个工作目录被清空、已完成的改动丢失，只能从 /tmp 备份抢救 index.js 并重写其余文件。教训：动手前先确认 base commit 只含远端真实文件",
     "变异测试首版把 __dirname 写死，导致在仓库外运行时 ENOENT 崩掉，报出「0 FAIL」假结论",
     "变异测试 M1 连续逃逸两次才想明白：--bogus 有两条等价兜底分支，rc 都是 2，第一次以为是自己门禁弱，其实是变异设计错误",
-    "单测里凭印象写 jsLikeFound / srcLines 的期望值，连错两次（3→4→3、3→5），实际都是靠跑一遍看真值才定位"
+    "单测里凭印象写 jsLikeFound / srcLines 的期望值，连错两次（3→4→3、3→5），实际都是靠跑一遍看真值才定位",
+    "最大失误：用 REST API 分多次构造分支提交后，GitHub 的 squash merge 只取「净 diff 的最后一个文件」，导致 PR #1 合并后 master 只进了 test/smoke-cli.js 一个文件、其余 9 个文件全丢且 index.js 回退成原版。发现后无法直接回滚 ref（非快进 422），只能从原始 master sha 重建完整分支再开 PR #2 修复。教训：API 推送必须「一次性把全部文件推到一个 commit」，且合并后必须逐文件核对 master 内容，不能只看 PR 状态为 MERGED。"
   ],
-  "pr": "见仓库 PR #1（[GH-Optimizer] 门禁真实性：空扫描不再通过 + 路径误判修正 + 参数严格化）",
-  "rollback": "squash 单 commit，一条 git revert 即可整体撤销",
+  "pr": "PR #1（内容不完整）+ PR #2（完整恢复）→ master 55c933d1；Round 2 见后续 PR",
+  "rollback": "master 上是完整单 commit 55c933d1，一条 git revert 即可整体撤销",
   "decidedAt": "2026-10-16"
 }
