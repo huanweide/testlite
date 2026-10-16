@@ -38,9 +38,10 @@
     "重建 base commit 时误把探针残留 j1.txt 纳入版本历史，导致整个工作目录被清空、已完成的改动丢失，只能从 /tmp 备份抢救 index.js 并重写其余文件。教训：动手前先确认 base commit 只含远端真实文件",
     "变异测试首版把 __dirname 写死，导致在仓库外运行时 ENOENT 崩掉，报出「0 FAIL」假结论",
     "变异测试 M1 连续逃逸两次才想明白：--bogus 有两条等价兜底分支，rc 都是 2，第一次以为是自己门禁弱，其实是变异设计错误",
-    "单测里凭印象写 jsLikeFound / srcLines 的期望值，连错两次（3→4→3、3→5），实际都是靠跑一遍看真值才定位"
+    "单测里凭印象写 jsLikeFound / srcLines 的期望值，连错两次（3→4→3、3→5），实际都是靠跑一遍看真值才定位",
+    "最大失误：用 REST API 分多次构造分支提交后，GitHub 的 squash merge 只取「净 diff 的最后一个文件」，导致 PR #1 合并后 master 只进了 test/smoke-cli.js 一个文件、其余 9 个文件全丢且 index.js 回退成原版。发现后无法直接回滚 ref（非快进 422），只能从原始 master sha 重建完整分支再开 PR #2 修复。教训：API 推送必须「一次性把全部文件推到一个 commit」，且合并后必须逐文件核对 master 内容，不能只看 PR 状态为 MERGED。"
   ],
-  "pr": "见仓库 PR #1（[GH-Optimizer] 门禁真实性：空扫描不再通过 + 路径误判修正 + 参数严格化）",
-  "rollback": "squash 单 commit，一条 git revert 即可整体撤销",
+  "pr": "PR #1（内容不完整，仅落进 test/smoke-cli.js）+ PR #2（完整恢复，CI 7/7 绿后 squash 合并）→ master = 55c933d1",
+  "rollback": "master 上是完整单 commit 55c933d1，一条 git revert 即可整体撤销",
   "decidedAt": "2026-10-16"
 }
