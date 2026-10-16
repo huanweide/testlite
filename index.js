@@ -407,6 +407,10 @@ function main(argv) {
     if (gateCfg.failOnIssues && health.warnings.length > 0) {
       gate.push('存在 ' + health.warnings.length + ' 条体检警告');
     }
+    // 同 doctor：区分「没配门禁」与「门禁通过」
+    const userGateActive = gateCfg.minTests !== undefined ||
+      gateCfg.minDensity !== undefined || gateCfg.failOnIssues;
+    const gateActive = userGateActive || !!basisGate;
     const report = {
       mode: 'run',
       root,
@@ -419,7 +423,7 @@ function main(argv) {
         testFiles: d.testFiles.length, estTestFns: d.estTestFns,
         srcLines: d.srcLines, healthScore: health.score, warnings: health.warnings
       },
-      gate: { passed: gate.length === 0, failures: gate }
+      gate: { active: gateActive, configured: userGateActive, passed: gate.length === 0, failures: gate }
     };
     if (args.json) {
       console.log(JSON.stringify(report, null, 2));
@@ -440,8 +444,11 @@ function main(argv) {
       if (gate.length) {
         console.log('  门禁: 失败');
         for (const g of gate) console.log('    [失败] ' + g);
-      } else {
+      } else if (gateActive) {
         console.log('  门禁: 通过');
+      } else {
+        console.log('  门禁: 未启用（未传任何阈值，退出码只反映 node --test 的成败；'
+          + '加 --min-tests / --min-density / --fail-on-issues 才额外拦得住）');
       }
     }
     if (ran && summary.fail > 0) {
@@ -483,8 +490,18 @@ function main(argv) {
     gate.push('存在 ' + health.warnings.length + ' 条体检警告');
   }
 
+  // 「一条门禁都没配」与「门禁全过」必须区分开。
+  // 早期版本一律打印「门禁: 通过」，但零测试项目在没传阈值时实际上一条门禁都没生效，
+  // 等于用「通过」两个字误导用户以为 CI 会拦住问题（实测：family-showcase 健康分 10/100 却显示通过）。
+  const userGateActive = gateCfg.minTests !== undefined ||
+    gateCfg.minDensity !== undefined || gateCfg.failOnIssues;
+  const gateActive = userGateActive || !!basisGate;
+  const gateLabel = gateActive
+    ? (gate.length ? '失败' : '通过')
+    : '未启用（未传任何阈值，退出码恒为 0；加 --min-tests / --min-density / --fail-on-issues 才拦得住）';
+
   if (args.json) {
-    report.gate = { passed: gate.length === 0, failures: gate };
+    report.gate = { active: gateActive, configured: userGateActive, passed: gate.length === 0, failures: gate };
     console.log(JSON.stringify(report, null, 2));
   } else {
     console.log('testlite · 测试卫生体检 · root=' + root);
@@ -514,7 +531,7 @@ function main(argv) {
       console.log('  门禁: 失败');
       for (const g of gate) console.log('    [失败] ' + g);
     } else {
-      console.log('  门禁: 通过');
+      console.log('  门禁: ' + gateLabel);
     }
   }
 

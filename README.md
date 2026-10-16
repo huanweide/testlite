@@ -81,6 +81,24 @@ testlite doctor --min-tests 10 --fail-on-issues
 
 `run` 与 `doctor` **同样吃全部门禁参数**（早期版本 `run` 会静默忽略它们，等于门禁不存在）。
 
+### 「门禁未启用」≠「门禁通过」
+
+不传任何阈值时，工具**一条门禁都不会生效**，退出码恒为 0。早期版本此时照样打印「门禁: 通过」，
+用这两个字让用户误以为 CI 会拦住问题（实测：零测试项目健康分 10/100 也显示「通过」）。
+
+现在会明确区分：
+
+```
+$ testlite doctor --root .        # 没传阈值
+  门禁: 未启用（未传任何阈值，退出码恒为 0；加 --min-tests / --min-density / --fail-on-issues 才拦得住）
+
+$ testlite doctor --root . --min-tests 1
+  门禁: 通过
+```
+
+`--json` 里对应 `gate.active` / `gate.configured` / `gate.passed` 三个字段：
+`configured` 表示用户是否真的配了阈值，`passed` 只在 `active=true` 时才有意义。
+
 ## 扫描基线可信度（`basisComplete`）
 
 体检工具最恶劣的失败模式是「扫了 0 个对象却报通过」。testlite 只体检 JS/TS 项目；若传入的 root 下**一个 JS/TS 文件都没有**（例如误传了 Python 项目目录、空目录），旧版本会拿 0/0 算出「健康分 10/100 · 警告 无 · 门禁 通过」并退 0。

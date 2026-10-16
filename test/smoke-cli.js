@@ -277,4 +277,43 @@ const NESTED_ROOT = mkUnderTestDir({
   ok('dogfood：自身体检通过 + 零依赖自证');
 })();
 
+// --- 10. 「没配门禁」必须与「门禁通过」区分开 -------------------------------
+(function gateActiveNotPassed() {
+  // 实测来源：用本工具体检 family-showcase（健康分 10/100、零测试）时，
+  // 早期版本照样打印「门禁: 通过」—— 但实际上一条门禁都没生效，纯误导。
+  const zeroNoGate = run(['doctor', '--root', ZERO_PROJ]);
+  assert.strictEqual(zeroNoGate.rc, 0, '零测试项目不加门禁参数应 rc=0（无门禁即不拦）');
+  assert.ok(/门禁: 未启用/.test(zeroNoGate.out),
+    '零测试 + 无门禁参数应显示「门禁: 未启用」，实际输出末尾=' + JSON.stringify(zeroNoGate.out.slice(-120)));
+  assert.ok(!/门禁: 通过/.test(zeroNoGate.out), '无门禁参数时不得出现「门禁: 通过」');
+
+  const j0 = JSON.parse(run(['doctor', '--root', ZERO_PROJ, '--json']).out);
+  assert.strictEqual(j0.gate.active, false, 'JSON gate.active 应为 false');
+  assert.strictEqual(j0.gate.configured, false, 'JSON gate.configured 应为 false');
+  assert.strictEqual(j0.gate.passed, true, '无门禁时 passed 只是「没东西可拦」，不是「体检达标」');
+
+  // 一旦配了门禁，措辞必须回到「通过」
+  const withGate = run(['doctor', '--root', GOOD_PROJ, '--min-tests', '1']);
+  assert.ok(/门禁: 通过/.test(withGate.out), '配了门禁且达标应显示「门禁: 通过」');
+  assert.ok(!/门禁: 未启用/.test(withGate.out), '配了门禁不得显示「未启用」');
+  const j1 = JSON.parse(run(['doctor', '--root', GOOD_PROJ, '--min-tests', '1', '--json']).out);
+  assert.strictEqual(j1.gate.active, true, 'JSON gate.active 应为 true');
+  assert.strictEqual(j1.gate.configured, true, 'JSON gate.configured 应为 true');
+
+  // 扫描基线为空时门禁无条件激活（不需要用户配阈值）
+  const j2 = JSON.parse(run(['doctor', '--root', PY_PROJ, '--json']).out);
+  assert.strictEqual(j2.gate.active, true, '基线为空时 gate.active 必须为 true');
+  assert.strictEqual(j2.gate.configured, false, '基线为空时 gate.configured 仍为 false（用户没配）');
+
+  // 行为后果断言（不只是读字段）：
+  // gateActive 被恒置 true 时，零测试项目会误显示「门禁: 通过」。
+  // 只断言 JSON 字段拦不住这类变异，必须断言人类可读输出的措辞。
+  const zeroLabel = run(['doctor', '--root', ZERO_PROJ]).out;
+  assert.ok(/门禁: 未启用/.test(zeroLabel),
+    '零测试 + 无门禁参数的人类可读输出必须写「未启用」，实际末尾=' + JSON.stringify(zeroLabel.slice(-60)));
+  assert.ok(!/门禁: 通过/.test(zeroLabel), '零测试 + 无门禁参数不得出现「门禁: 通过」');
+
+  ok('「门禁未启用」与「门禁通过」严格区分（含人类可读输出措辞断言）');
+})();
+
 console.log('\ntestlite 入口冒烟：' + pass + ' 组全绿');
