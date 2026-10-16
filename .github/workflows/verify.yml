@@ -1,0 +1,83 @@
+name: verify
+
+on:
+  push:
+    branches: [master, main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  verify:
+    name: node ${{ matrix.node }} on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        # engines 声称 >=18，矩阵必须真跑最低版本；本仓库零依赖，无需装任何包。
+        os: [ubuntu-latest, windows-latest]
+        node: ['18', '20', '22']
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+
+      - name: 语法检查（三个版本都必须过）
+        run: node --check index.js && node --check test.js && node --check test/smoke-cli.js
+
+      - name: 单元测试
+        run: node test.js
+
+      - name: 入口冒烟（spawn 级，校验退出码契约）
+        run: node test/smoke-cli.js
+
+      - name: 零依赖自证（不得出现 node_modules / 任何依赖字段）
+        shell: bash
+        run: |
+          test ! -d node_modules || { echo "本工具必须零依赖，出现了 node_modules"; exit 1; }
+          node -e "
+            const pkg = require('./package.json');
+            const dep = Object.keys(pkg.dependencies || {}).length + Object.keys(pkg.devDependencies || {}).length;
+            if (dep !== 0) { console.error('package.json 出现依赖字段: ' + dep); process.exit(1); }
+            console.log('零依赖自证通过');
+          "
+
+      - name: 体检自身（dogfood）
+        run: node index.js doctor --root . --min-tests 1
+
+  selfcheck:
+    name: README 与代码一致性
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      # README 里出现的每个选项名 / 退出码说法，都必须能在源码或实测里对上。
+      # 家族教训：README 张冠李戴（把别的工具的「健康分」写进来）是重灾区。
+      - name: README 选项名必须在源码中存在
+        shell: bash
+        run: |
+          fail=0
+          for opt in --root --json --min-tests --min-density --fail-on-issues; do
+            if ! grep -q -- "$opt" index.js; then
+              echo "README/帮助宣传了 $opt，但 index.js 里没有"; fail=1
+            fi
+          done
+          # README 不得残留已废弃的安装方式（本仓库未发布 npm，npm 上同名包属他人）
+          if grep -nE '^\s*(npx testlite|npm i -g testlite|npm install -g testlite)\s*$' README.md; then
+            echo "README 含会装到他人同名包的命令"; fail=1
+          fi
+          # README 不得指向并不存在的 npm 包页面
+          if grep -q 'npmjs.com/package/testlite' README.md; then
+            echo "README 指向了并不存在的 npm 包页面"; fail=1
+          fi
+          # package.json 的 engines 下限必须与 CI 矩阵最低版本一致
+          node -e "
+            const pkg = require('./package.json');
+            const min = pkg.engines.node.replace(/[^0-9]/g, '');
+            if (min !== '18') { console.error('engines 下限是 ' + min + '，CI 矩阵最低版本是 18，两者必须一致'); process.exit(1); }
+          "
+          test $fail -eq 0
+          echo "README 一致性检查通过"
