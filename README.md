@@ -13,11 +13,13 @@
 
 **🔧 Part of the [Engineering Health Family](https://github.com/huanweide/family-showcase)** (18 zero-dependency checkup axes). Standalone tool — see [doctors](https://github.com/huanweide/doctors) (monorepo) and [enghealth](https://github.com/huanweide/enghealth) (unified runner).
 
+> English: 暂未提供
+
 # testlite
 
 零依赖单文件 Node CLI · 测试卫生体检中心。
 
-devdoctor 看「依赖干不干净」，testlite 看「测试健不健康」——两者拼成代码健康 family 的完整组合叙事。
+devdoctor 看「依赖干不干净」，testlite 看「测试健不健康」——两者拼成代码健康工具系列的完整组合叙事。
 
 ## ⚠️ 安装前必读：本项目尚未发布到 npm，npm 上的 `testlite` 是别人的包
 
@@ -27,7 +29,7 @@ devdoctor 看「依赖干不干净」，testlite 看「测试健不健康」—�
 testlite@2.0.2 | MIT | deps: none | versions: 7
 Easy, lightweight testing
 https://github.com/bdsomer/testlite#readme
-maintainers: bdsomer <bdsomer@gmail.com>
+maintainers: bdsomer
 ```
 
 **那是另一个作者的无关包**（bdsomer 的测试辅助库）。执行 `npm i -g testlite` 或 `npx testlite` 会装错东西并抢占同名命令。所以：
@@ -135,7 +137,7 @@ $ testlite doctor --root . --min-tests 1
 | leasot | 否 | 否 | TODO 扫描 | 需装 |
 | **testlite** | **是** | **是** | **是（密度/零测试/超大/覆盖率）** | **是（内置）** |
 
-## 设计铁律（family 方法沉淀）
+## 设计铁律（工程方法沉淀）
 
 - 纯本地、零依赖、离线、单文件，跨平台（Windows posix 路径）。
 - 未知选项 / 缺值 / 非数字阈值一律 exit 2，绝不静默放行。
@@ -171,7 +173,7 @@ MIT
 
 ## 作者
 
-由 **ReTr · huanweide** 维护 · [GitHub 主页](https://github.com/huanweide)
+由 **huanweide** 维护 · [GitHub 主页](https://github.com/huanweide)
 
 
 ## 许可证
@@ -186,4 +188,4 @@ MIT
 - 离线 / 跨平台：Node 18+ 即可，不联网、不挑系统。
 - 一键跑：`node index.js --root ./src`（详见上方用法）。
 
-← [回到代码健康家族总览](https://github.com/huanweide/family-showcase)
+← [回到代码健康工具系列总览](https://github.com/huanweide/family-showcase)
